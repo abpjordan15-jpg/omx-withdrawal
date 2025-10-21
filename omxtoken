@@ -1,0 +1,359 @@
+# Create a ready-to-deploy Next.js project and zip it for the user
+
+import os, json, textwrap, zipfile, pathlib
+
+base = "/mnt/data/omx-withdrawal"
+os.makedirs(base, exist_ok=True)
+os.makedirs(f"{base}/pages", exist_ok=True)
+os.makedirs(f"{base}/components", exist_ok=True)
+os.makedirs(f"{base}/styles", exist_ok=True)
+os.makedirs(f"{base}/lib", exist_ok=True)
+os.makedirs(f"{base}/public", exist_ok=True)
+
+# package.json with export build for Vercel static output
+package_json = {
+    "name": "omx-withdrawal",
+    "version": "1.0.0",
+    "private": True,
+    "scripts": {
+        "dev": "next dev -p 3000",
+        "build": "next build && next export",
+        "start": "next start -p 3000"
+    },
+    "dependencies": {
+        "ethers": "6.13.1",
+        "next": "14.2.5",
+        "react": "18.2.0",
+        "react-dom": "18.2.0"
+    }
+}
+with open(f"{base}/package.json","w") as f:
+    json.dump(package_json, f, indent=2)
+
+# next.config.js configured for static export
+next_config = """\
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  // Export as static site so Vercel 'out' works
+  output: 'export'
+};
+
+module.exports = nextConfig;
+"""
+open(f"{base}/next.config.js","w").write(next_config)
+
+# globals.css
+globals_css = """\
+:root{
+  --bg:#f0f2f5;
+  --card:#ffffff;
+  --text:#1c1e21;
+  --muted:#65676b;
+  --blue:#1877f2;
+  --border:#e4e6eb;
+}
+*{box-sizing:border-box}
+html,body,#__next{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif}
+.container{max-width:960px;margin:40px auto;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.04);padding:20px}
+.h1{font-size:28px;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 16px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:10px}
+.input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:14px}
+.btn{background:var(--blue);color:#fff;padding:10px 14px;border:none;border-radius:8px;cursor:pointer;font-weight:600}
+.btn.secondary{background:#e7f0ff;color:#1877f2}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.table{width:100%;border-collapse:collapse;margin-top:10px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+.table th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.02em}
+.notice{background:#fff8e1;border:1px solid #ffe7a3;padding:10px;border-radius:8px;color:#7a5b00}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef1f5;color:#334;font-size:12px}
+.badge.blue{background:#e7f0ff;color:#145db8}
+.badge.red{background:#ffe7e7;color:#a02121}
+.badge.green{background:#e6f7ee;color:#0b7a3e}
+"""
+open(f"{base}/styles/globals.css","w").write(globals_css)
+
+# _app.js
+app_js = """\
+import "@/styles/globals.css";
+
+export default function App({ Component, pageProps }) {
+  return <Component {...pageProps} />;
+}
+"""
+open(f"{base}/pages/_app.js","w").write(app_js)
+
+# lib/contract.js
+contract_js = """\
+// Contract wiring
+export const TOKEN_ADDRESS = "0xaE228B2bf44Fa16D921573E9a59640edc705Be67"; // hard-coded
+export const TOKEN_SYMBOL  = "OMX";
+
+export const ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function phpRate() view returns (uint256)", // optional (1e18 scaled). If missing, UI hides PHP values
+  "function previewWithdraw(address user, uint256 amount) view returns (uint256 netAmount,uint256 feeAmount,uint256 allowedPortion,uint256 excessPortion,bool firstYear)",
+  "function transfer(address to, uint256 amount) returns (bool)"
+];
+"""
+open(f"{base}/lib/contract.js","w").write(contract_js)
+
+# components/WalletConnect.js
+wallet_connect = """\
+import { useEffect, useState } from "react";
+import { BrowserProvider } from "ethers";
+
+export default function WalletConnect({ onReady }) {
+  const [address, setAddress] = useState(null);
+  const [chainId, setChainId] = useState(null);
+
+  useEffect(() => {
+    if (!window?.ethereum) return;
+    const handle = async () => {
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        const net = await provider.getNetwork();
+        setChainId(Number(net.chainId));
+        const accounts = await provider.listAccounts();
+        if (accounts.length) {
+          const addr = accounts[0].address;
+          setAddress(addr);
+          onReady?.(provider, addr);
+        }
+      } catch {}
+    };
+    handle();
+    window.ethereum?.on?.("accountsChanged", handle);
+    window.ethereum?.on?.("chainChanged", () => location.reload());
+    return () => {
+      window.ethereum?.removeListener?.("accountsChanged", handle);
+      window.ethereum?.removeListener?.("chainChanged", () => location.reload());
+    };
+  }, []);
+
+  const connect = async () => {
+    if (!window?.ethereum) { alert("MetaMask not found"); return; }
+    const provider = new BrowserProvider(window.ethereum);
+    const accounts = await provider.send("eth_requestAccounts", []);
+    setAddress(accounts[0]);
+    const net = await provider.getNetwork();
+    setChainId(Number(net.chainId));
+    onReady?.(provider, accounts[0]);
+  };
+
+  const switchPolygon = async () => {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x89" }] });
+    location.reload();
+  };
+
+  return (
+    <div className="card" style={{marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontWeight:700}}>Wallet</div>
+          <div className="sub">
+            {address ? <>Connected: <span className="badge blue">{address.slice(0,6)}…{address.slice(-4)}</span></> : "Not connected"}
+          </div>
+          {chainId && chainId !== 137 && (
+            <div className="notice" style={{marginTop:8}}>
+              You’re on chain {chainId}. Please switch to Polygon Mainnet (137).
+              <div style={{marginTop:8}}>
+                <button className="btn secondary" onClick={switchPolygon}>Switch to Polygon</button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div>
+          {!address ? <button className="btn" onClick={connect}>Connect MetaMask</button> : <span className="badge">Polygon</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+"""
+open(f"{base}/components/WalletConnect.js","w").write(wallet_connect)
+
+# pages/index.js
+index_js = """\
+import { useMemo, useState } from "react";
+import WalletConnect from "@/components/WalletConnect";
+import { BrowserProvider, Contract, formatUnits, parseUnits } from "ethers";
+import { ABI, TOKEN_ADDRESS, TOKEN_SYMBOL } from "@/lib/contract";
+
+export default function Home() {
+  const [provider, setProvider] = useState/** @type {BrowserProvider|null} */(null);
+  const [address, setAddress] = useState(null);
+  const [decimals, setDecimals] = useState(18);
+  const [balance, setBalance] = useState("0");
+  const [phpRate, setPhpRate] = useState(null);
+  const [amount, setAmount] = useState("");
+  const [to, setTo] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const contract = useMemo(() => {
+    if (!provider) return null;
+    return new Contract(TOKEN_ADDRESS, ABI, provider);
+  }, [provider]);
+
+  const refresh = async (addr) => {
+    if (!contract || !addr) return;
+    try {
+      const d = await contract.decimals();
+      const bal = await contract.balanceOf(addr);
+      setDecimals(Number(d));
+      setBalance(formatUnits(bal, Number(d)));
+      try {
+        const r = await contract.phpRate();
+        setPhpRate(Number(formatUnits(r, 18)));
+      } catch { setPhpRate(null); }
+    } catch {}
+  };
+
+  const onWalletReady = async (p, addr) => {
+    setProvider(p);
+    setAddress(addr);
+    await refresh(addr);
+  };
+
+  const doPreview = async () => {
+    setMsg(""); setPreview(null);
+    if (!contract || !address) return;
+    if (!amount || Number(amount) <= 0) { setMsg("Enter amount."); return; }
+    try {
+      const raw = parseUnits(String(amount), decimals);
+      const res = await contract.previewWithdraw(address, raw);
+      const data = {
+        net: Number(formatUnits(res[0], decimals)),
+        fee: Number(formatUnits(res[1], decimals)),
+        allowed: Number(formatUnits(res[2], decimals)),
+        excess: Number(formatUnits(res[3], decimals)),
+        firstYear: Boolean(res[4])
+      };
+      setPreview(data);
+    } catch (e) { setMsg("Preview failed. Make sure trading is enabled and you’re on Polygon."); }
+  };
+
+  const doWithdraw = async () => {
+    setMsg("");
+    if (!provider || !contract || !address) return;
+    if (!to) { setMsg("Enter a recipient address."); return; }
+    if (!amount || Number(amount) <= 0) { setMsg("Enter amount."); return; }
+    try {
+      setBusy(true);
+      const signer = await provider.getSigner();
+      const signed = contract.connect(signer);
+      const tx = await signed.transfer(to, parseUnits(String(amount), decimals));
+      setMsg("Submitting transaction…");
+      await tx.wait();
+      setMsg("✅ Withdrawal sent.");
+      await refresh(address);
+      setPreview(null);
+      setAmount("");
+    } catch (e) { setMsg("Transaction failed or rejected."); }
+    finally { setBusy(false); }
+  };
+
+  const phpFor = (omx) => (phpRate ? (omx * phpRate).toFixed(2) : null);
+
+  return (
+    <div className="container">
+      <div className="card">
+        <div className="h1">OMX Token Dashboard</div>
+        <div className="sub">Polygon Mainnet • Blue/White UI</div>
+
+        <WalletConnect onReady={onWalletReady} />
+
+        <div className="row">
+          <div className="card" style={{flex:1,minWidth:260}}>
+            <div className="sub">Your {TOKEN_SYMBOL} Balance</div>
+            <div style={{fontSize:28,fontWeight:700}}>
+              {Number(balance).toLocaleString(undefined,{maximumFractionDigits:4})} {TOKEN_SYMBOL}
+            </div>
+            {phpRate && (
+              <div className="sub" style={{marginTop:6}}>
+                Approx: <b>₱{phpFor(Number(balance))}</b> (₱{phpRate} / {TOKEN_SYMBOL})
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{flex:2,minWidth:300}}>
+            <div className="sub" style={{marginBottom:8}}>Withdraw (Transfer)</div>
+            <div className="stack">
+              <input className="input" placeholder={`Amount (${TOKEN_SYMBOL})`} type="number" min="0" step="0.0001" value={amount} onChange={(e)=>setAmount(e.target.value)} />
+              <input className="input" placeholder="Recipient address (0x…)" value={to} onChange={(e)=>setTo(e.target.value)} />
+              <div className="row">
+                <button className="btn secondary" onClick={doPreview} disabled={!address || busy}>Preview</button>
+                <button className="btn" onClick={doWithdraw} disabled={!address || busy}>Withdraw</button>
+              </div>
+
+              {msg && <div className="notice">{msg}</div>}
+
+              {preview && (
+                <div className="card" style={{padding:12}}>
+                  <div style={{fontWeight:700,marginBottom:6}}>Preview Result</div>
+                  <table className="table">
+                    <tbody>
+                      <tr><th>Net You Receive</th><td>{preview.net.toLocaleString(undefined,{maximumFractionDigits:4})} {TOKEN_SYMBOL}{phpRate && <> &nbsp;(₱{phpFor(preview.net)})</>}</td></tr>
+                      <tr><th>Fee (Lost)</th><td>{preview.fee.toLocaleString(undefined,{maximumFractionDigits:4})} {TOKEN_SYMBOL}{phpRate && <> &nbsp;(₱{phpFor(preview.fee)})</>}</td></tr>
+                      <tr><th>Allowed Portion</th><td>{preview.allowed.toLocaleString(undefined,{maximumFractionDigits:4})} {TOKEN_SYMBOL}</td></tr>
+                      <tr><th>Excess Portion</th><td>{preview.excess.toLocaleString(undefined,{maximumFractionDigits:4})} {TOKEN_SYMBOL}</td></tr>
+                      <tr><th>Status</th><td>{preview.firstYear ? <span className="badge red">Within first year (30% penalty)</span> : <span className="badge green">After first year (10%/30 days)</span>}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="sub" style={{marginTop:6}}>
+                • First year: 30% penalty auto-applied by contract.<br/>
+                • After 1 year: up to 10% per 30 days is free; excess incurs 30% on excess.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+"""
+open(f"{base}/pages/index.js","w").write(index_js)
+
+# README
+readme = """\
+# OMX Token Dashboard (Polygon)
+
+- Connect MetaMask
+- Show OMX balance
+- Preview withdrawal (uses `previewWithdraw`)
+- Withdraw via ERC20 `transfer(to, amount)`
+
+**Contract:** `0xaE228B2bf44Fa16D921573E9a59640edc705Be67` (hard-coded)
+
+## Build / Deploy
+- Vercel Config:
+  - Framework: Next.js
+  - Build Command: `npm run build`
+  - Output Directory: `out`
+- Local:
+  - `npm i`
+  - `npm run dev`
+"""
+open(f"{base}/README.md","w").write(readme)
+
+# Zip it
+zip_path = "/mnt/data/omx-withdrawal.zip"
+with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
+    for root, _, files in os.walk(base):
+        for name in files:
+            full = os.path.join(root, name)
+            rel = os.path.relpath(full, "/mnt/data")
+            z.write(full, rel)
+
+zip_path
