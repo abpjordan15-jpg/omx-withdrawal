@@ -1,0 +1,30 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf610
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # OMX Withdrawal (Polygon Mainnet)\
+\
+- Connect MetaMask\
+- See OMX balance\
+- Preview withdrawal (net, fee, allowed, excess, first-year flag, PHP value)\
+- Withdraw = ERC20 `transfer(to, amount)`\
+\
+## Env Vars (set in Vercel 
+\f1 \uc0\u8594 
+\f0  Settings 
+\f1 \uc0\u8594 
+\f0  Environment Variables)\
+- NEXT_PUBLIC_TOKEN_ADDRESS = 0xYourDeployedOMXTokenAddress\
+- NEXT_PUBLIC_CHAIN_ID = 137\
+- NEXT_PUBLIC_SYMBOL = OMX\
+\
+Optional (only if your contract exposes `phpRate` as `uint256` scaled by 1e18):\
+- NEXT_PUBLIC_HAS_PHP_RATE = true\
+\
+## Local\
+npm i\
+npm run dev\
+}

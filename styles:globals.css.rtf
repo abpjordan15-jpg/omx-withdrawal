@@ -1,0 +1,81 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf610
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 :root \{\
+  --bg: #f0f2f5;          /* fb light grey */\
+  --card: #ffffff;        /* white */\
+  --text: #1c1e21;        /* fb dark text */\
+  --muted: #65676b;       /* fb muted grey */\
+  --blue: #1877f2;        /* fb blue */\
+  --blue-dark: #145db8;\
+  --border: #e4e6eb;\
+\}\
+\
+* \{ box-sizing: border-box; \}\
+html, body, #__next \{ height: 100%; \}\
+body \{\
+  margin: 0;\
+  background: var(--bg);\
+  color: var(--text);\
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;\
+\}\
+\
+.container \{\
+  max-width: 960px;\
+  margin: 40px auto;\
+  padding: 0 16px;\
+\}\
+\
+.card \{\
+  background: var(--card);\
+  border: 1px solid var(--border);\
+  border-radius: 10px;\
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);\
+  padding: 20px;\
+\}\
+\
+.h1 \{ font-size: 28px; margin: 0 0 6px; \}\
+.sub \{ color: var(--muted); margin: 0 0 20px; \}\
+\
+.row \{ display: flex; gap: 12px; flex-wrap: wrap; \}\
+.stack \{ display: flex; flex-direction: column; gap: 10px; \}\
+\
+.input, .select \{\
+  width: 100%;\
+  padding: 10px 12px;\
+  border: 1px solid var(--border);\
+  border-radius: 8px;\
+  background: #fff;\
+  font-size: 14px;\
+\}\
+\
+.btn \{\
+  background: var(--blue);\
+  color: #fff;\
+  padding: 10px 14px;\
+  border: none;\
+  border-radius: 8px;\
+  cursor: pointer;\
+  font-weight: 600;\
+\}\
+.btn:disabled \{ opacity: 0.5; cursor: not-allowed; \}\
+.btn.secondary \{ background: #e7f0ff; color: var(--blue); \}\
+.btn.danger \{ background: #e53935; \}\
+\
+.kbd \{ background: #eef1f5; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; \}\
+\
+.table \{ width: 100%; border-collapse: collapse; margin-top: 10px; \}\
+.table th, .table td \{ padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; \}\
+.table th \{ color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; \}\
+\
+.notice \{ background: #fff8e1; border: 1px solid #ffe7a3; padding: 10px 12px; border-radius: 8px; color: #7a5b00; \}\
+\
+.badge \{ display:inline-block; padding:2px 8px; border-radius:999px; background:#eef1f5; color:#334; font-size:12px; \}\
+.badge.blue \{ background:#e7f0ff; color:#145db8; \}\
+.badge.red \{ background:#ffe7e7; color:#a02121; \}\
+.badge.green \{ background:#e6f7ee; color:#0b7a3e; \}\
+}
